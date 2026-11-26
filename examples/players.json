@@ -1,0 +1,14 @@
+{
+  "players": [
+    { "name": "BurNIng", "rank": "冠绝一世", "star": 3, "mmr": 6200, "positions": [1, 2] },
+    { "name": "Ame", "rank": "超凡入圣", "star": 5, "mmr": 4950, "positions": [1] },
+    { "name": "Maybe", "rank": "冠绝一世", "star": 1, "mmr": 5600, "positions": [2] },
+    { "name": "SumaiL", "rank": "超凡入圣", "star": 4, "mmr": 4700, "positions": [2, 3] },
+    { "name": "Yang", "rank": "万古流芳", "star": 5, "mmr": 4050, "positions": [3] },
+    { "name": "Faith_bian", "rank": "万古流芳", "star": 2, "mmr": 3700, "positions": [3, 4] },
+    { "name": "Fy", "rank": "传奇", "star": 5, "mmr": 3450, "positions": [4] },
+    { "name": "xNova", "rank": "传奇", "star": 3, "mmr": 3200, "positions": [4, 5] },
+    { "name": "y", "rank": "统帅", "star": 5, "mmr": 2750, "positions": [5] },
+    { "name": "Dy", "rank": "统帅", "star": 2, "mmr": 2400, "positions": [5, 1] }
+  ]
+}

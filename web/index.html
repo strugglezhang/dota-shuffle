@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DOTA 内战局</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- 全屏战场背景 -->
+  <div class="bg-stage" aria-hidden="true">
+    <div class="bg-slide"></div>
+    <div class="bg-slide"></div>
+    <div class="bg-veil"></div>
+  </div>
+  <canvas class="bg-particles" aria-hidden="true"></canvas>
+
+  <div id="app">
+    <header class="page-header">
+      <div class="brand">
+        <!-- 原创远古水晶徽记 -->
+        <svg class="emblem" viewBox="0 0 64 64" aria-hidden="true">
+          <defs>
+            <linearGradient id="emblemG" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#7df0d0"/>
+              <stop offset="1" stop-color="#ff5a6a"/>
+            </linearGradient>
+          </defs>
+          <path d="M32 4 L52 20 L46 52 L18 52 L12 20 Z" fill="none" stroke="url(#emblemG)" stroke-width="3" stroke-linejoin="round"/>
+          <path d="M32 16 L42 28 L32 46 L22 28 Z" fill="url(#emblemG)" opacity="0.85"/>
+          <circle cx="32" cy="30" r="4" fill="#0a1626"/>
+        </svg>
+        <div class="brand-text">
+          <h1>DOTA 内战局</h1>
+          <p>先匹配位置，再平衡分数</p>
+        </div>
+        <button class="btn ghost wallpaper-btn" type="button" @click="rotateWallpaper" title="切换战场背景">
+          <span class="wallpaper-dot"></span>切换战场
+        </button>
+      </div>
+    </header>
+
+    <nav class="tab-nav">
+      <button class="tab-btn" :class="{ active: view === 'shuffle' }" @click="view = 'shuffle'">对阵大厅</button>
+      <button class="tab-btn" :class="{ active: view === 'history' }" @click="view = 'history'">
+        战史档案<span v-if="history.length" class="tab-badge">{{ history.length }}</span>
+      </button>
+    </nav>
+
+    <div class="layout" v-show="view === 'shuffle'">
+      <!-- 左：录入与玩家池 -->
+      <section class="panel glass">
+        <h2 class="panel-title">报名阵容</h2>
+        <form class="entry-form" @submit.prevent="addPlayer">
+          <label>昵称
+            <input :disabled="rosterLocked" v-model.trim="form.name" placeholder="必填，全队唯一" maxlength="20">
+          </label>
+
+          <div class="form-row">
+            <label>段位
+              <div class="rank-select">
+                <span class="rank-dot" :style="{ background: tierColor(rankTier(form.rank)) }"></span>
+                <select :disabled="rosterLocked" v-model="form.rank">
+                  <option v-for="r in ranks" :key="r.tier" :value="r.name">{{ r.name }}</option>
+                </select>
+              </div>
+            </label>
+            <div class="star-field">
+              <label for="rank-stars">星级</label>
+              <choice-menu
+                v-model="form.star" control-id="rank-stars" label="星级"
+                placeholder="无星级" :options="starAvailable ? starOptions : []"
+                :disabled="rosterLocked || !starAvailable">
+              </choice-menu>
+            </div>
+          </div>
+
+          <label>MMR 分数（可选，留空按段位估算）
+            <input :disabled="rosterLocked" v-model="form.mmr" type="number" min="0" placeholder="例如 3200">
+          </label>
+
+          <fieldset class="position-field" :disabled="rosterLocked">
+            <legend>可打位置（可多选，至少一个）</legend>
+            <div class="pos-grid">
+              <button type="button" v-for="p in positions" :key="p.value"
+                      class="pos-chip role-card" :data-position="p.value" :class="{ active: form.positions.includes(p.value) }"
+                      :aria-pressed="form.positions.includes(p.value)" @click="togglePosition(p.value)">
+                <span class="role-emblem"><span>{{ p.value }}</span></span>
+                <span class="pos-text">{{ p.label }}</span>
+              </button>
+            </div>
+          </fieldset>
+
+          <button type="submit" class="btn primary" :disabled="rosterLocked">加入玩家池</button>
+          <p v-if="formError" class="error-text">{{ formError }}</p>
+        </form>
+
+        <div class="pool-head">
+          <h2 class="panel-title">玩家池（{{ players.length }} 人）</h2>
+          <div class="pool-actions">
+            <button class="btn ghost" :disabled="rosterLocked" @click="fillSample">填充示例</button>
+            <button class="btn ghost danger" :disabled="rosterLocked" @click="clearAll">清空</button>
+          </div>
+        </div>
+        <p v-if="benchCount > 0" class="pool-hint">
+          当前 10 人首发、{{ benchCount }} 人替补。点「换上首发」指定要换下的玩家。
+        </p>
+        <form v-if="swap" class="swap-form" @submit.prevent="confirmSwap">
+          <p>换上 <strong>{{ swap.incoming }}</strong></p>
+          <label for="swap-starter">换下哪位首发</label>
+          <choice-menu
+            ref="swapStarter" v-model="swap.outgoing" control-id="swap-starter" label="换下哪位首发"
+            placeholder="选择首发玩家" :options="swapOptions" :disabled="loading">
+          </choice-menu>
+          <div class="swap-actions">
+            <button class="btn primary" type="submit" :disabled="!swap.outgoing || loading">确认换人</button>
+            <button class="btn ghost" type="button" :disabled="loading" @click="swap = null">取消</button>
+          </div>
+          <p v-if="swap.error" class="error-text" role="alert">{{ swap.error }}</p>
+        </form>
+        <p v-if="swapStatus" class="swap-status" role="status">{{ swapStatus }}</p>
+
+        <div v-if="players.length" class="table-scroll" role="region" aria-label="玩家池名单" tabindex="0">
+          <table class="player-table">
+            <thead>
+              <tr><th>昵称</th><th>段位</th><th>星级</th><th>MMR</th><th>位置</th><th></th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="(p, i) in players" :key="p.name + i" :class="{ 'row-bench': i >= 10 }">
+                <td class="player-name">
+                  {{ p.name }}
+                  <span v-if="players.length > 10" class="role-tag" :class="i < 10 ? 'tag-starter' : 'tag-bench'">
+                    {{ i < 10 ? '首发' : '替补' }}
+                  </span>
+                </td>
+                <td>
+                  <span class="rank-badge" :style="{ borderColor: tierColor(rankTier(p.rank)), color: tierColor(rankTier(p.rank)) }">
+                    {{ tierName(rankTier(p.rank)) }}
+                  </span>
+                </td>
+                <td>{{ starLabel(p) }}</td>
+                <td>{{ p.mmr || '段位估算' }}</td>
+                <td>
+                  <span v-for="pos in playerPositions(p)" :key="pos" class="pos-chip sm">
+                    <span class="pos-num">{{ pos }}</span><span class="pos-text">{{ posShort(pos) }}</span>
+                  </span>
+                </td>
+                <td class="player-ops">
+                  <button v-if="i >= starterCount" class="link-btn" :disabled="loading" @click="beginSwap(p.name)">换上首发</button>
+                  <button class="link-btn danger" :disabled="rosterLocked" @click="removePlayer(i)">移除</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p v-else class="empty-hint">玩家池为空，先在上方添加，或点「填充示例」快速体验。</p>
+
+        <div class="balance-actions" v-if="!series">
+          <button class="btn primary big" :disabled="!canBalance || loading || !!swap" @click="balance">
+            开启 BO3 · 均衡分队
+          </button>
+        </div>
+        <p v-if="!canBalance && players.length" class="error-text">
+          当前 {{ players.length }} 人：10 人以内需为偶数才能平分两队；报名超过 10 人时固定取前 10 人首发。
+        </p>
+        <p v-if="apiError && !series" class="error-text" role="alert">{{ apiError }}</p>
+      </section>
+
+      <!-- 右：分队结果 -->
+      <section class="panel glass result-panel">
+        <h2 class="panel-title">对阵阵容</h2>
+        <div v-if="!result" class="empty-hint result-empty">
+          <svg class="rune" viewBox="0 0 100 100" aria-hidden="true">
+            <circle cx="50" cy="50" r="44" fill="none" stroke="#6ac4ff" stroke-opacity="0.4" stroke-width="2"/>
+            <path d="M50 18 L74 50 L50 82 L26 50 Z" fill="none" stroke="#6ac4ff" stroke-opacity="0.6" stroke-width="2"/>
+          </svg>
+          <p>添加至少 2 名玩家，开启一场三局两胜的对阵。</p>
+        </div>
+
+        <template v-else>
+          <section v-if="series" class="series-board" aria-label="BO3 战果">
+            <div class="series-head">
+              <span>BO3 · 三局两胜</span>
+              <button class="link-btn" @click="returnToRoster" :disabled="loading">返回录入</button>
+            </div>
+            <div class="series-score" aria-live="polite">
+              <span class="score-radiant">天辉 <strong>{{ score(series, 'win') }}</strong></span>
+              <span class="score-divider">:</span>
+              <span class="score-dire"><strong>{{ score(series, 'lose') }}</strong> 夜魇</span>
+            </div>
+            <ol class="series-rounds" aria-label="每局战果">
+              <li v-for="n in 3" :key="n"
+                  :class="{ current: activeSeries && series.rounds.length === n - 1, 'round-win': series.rounds[n - 1] === 'win', 'round-lose': series.rounds[n - 1] === 'lose' }">
+                <span>第 {{ n }} 局</span>
+                <strong>{{ series.rounds[n - 1] ? outcomeLabel(series.rounds[n - 1]) : series.outcome ? '未进行' : '待记录' }}</strong>
+              </li>
+            </ol>
+            <div class="series-actions" v-if="activeSeries">
+              <button class="outcome-btn win" @click="recordRound('win')" :disabled="loading || !!swap">天辉赢下本局</button>
+              <button class="outcome-btn lose" @click="recordRound('lose')" :disabled="loading || !!swap">夜魇赢下本局</button>
+            </div>
+            <div class="series-actions" v-else>
+              <strong>{{ outcomeLabel(series.outcome) }} · BO3 已结束</strong>
+              <button class="btn primary" @click="balance" :disabled="!canBalance || loading || !!swap">重新分队 · 下一场 BO3</button>
+            </div>
+            <button v-if="series.rounds.length" class="link-btn series-undo" @click="recordRound('undo')" :disabled="loading || !!swap">撤销上一局战果</button>
+            <ul v-if="result.substitutions?.length" class="substitution-log" aria-label="换人记录">
+              <li v-for="(change, i) in result.substitutions" :key="i">
+                第 {{ change.fromRound }} 局起 · {{ change.team }} · {{ change.incoming }} 换下 {{ change.outgoing }}
+              </li>
+            </ul>
+            <p v-if="apiError" class="error-text" role="alert">{{ apiError }}</p>
+          </section>
+          <p class="result-summary">
+            报名 {{ rosterTotal(result) }} 人 · 首发 {{ result.teamA.players.length * 2 }} 人（每队 {{ result.teamA.players.length }} 人）
+            <template v-if="result.bench && result.bench.length"> · 替补 {{ result.bench.length }} 人（按录入顺序顺延）</template>
+            <template v-if="result.recordID"> · 已存档 #{{ result.recordID }}</template>
+            <span v-if="viewedOutcome && !series" class="outcome-badge" :class="viewedOutcome === 'win' ? 'outcome-win' : 'outcome-lose'">
+              {{ outcomeLabel(viewedOutcome) }}
+            </span>
+          </p>
+          <div class="metrics">
+            <div class="metric">
+              <span class="metric-label">总分差</span>
+              <span class="metric-value" :class="{ tight: result.scoreDiff <= 200 }">{{ result.scoreDiff }}</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">天辉位置冲突</span>
+              <span class="metric-value" :class="{ bad: result.conflictA > 0 }">{{ result.conflictA }}</span>
+            </div>
+            <div class="metric">
+              <span class="metric-label">夜魇位置冲突</span>
+              <span class="metric-value" :class="{ bad: result.conflictB > 0 }">{{ result.conflictB }}</span>
+            </div>
+          </div>
+          <p v-if="result.conflictA + result.conflictB > 0" class="warn-text">
+            有玩家未匹配到独立的可打位置，已标记为「待补位」。
+          </p>
+
+          <div class="teams">
+            <article v-for="team in [result.teamA, result.teamB]" :key="team.name"
+                     class="team-card" :class="team.name === '天辉' ? 'radiant-card' : 'dire-card'">
+              <div class="team-banner">
+                <div class="banner-overlay"></div>
+                <div class="banner-content">
+                  <svg class="crest" viewBox="0 0 48 48" aria-hidden="true">
+                    <path d="M24 5 L40 18 L35 40 L13 40 L8 18 Z" fill="none"
+                          :stroke="team.name === '天辉' ? '#7df0d0' : '#ff9aa6'" stroke-width="2.5" stroke-linejoin="round"/>
+                    <path d="M24 15 L32 25 L24 36 L16 25 Z"
+                          :fill="team.name === '天辉' ? '#2fe6b4' : '#ff5a6a'" opacity="0.85"/>
+                  </svg>
+                  <div class="team-title">
+                    <h3>{{ team.name }}</h3>
+                    <span class="team-sub">{{ team.name === '天辉' ? 'RADIANT' : 'DIRE' }}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="team-stats">
+                <span>总分 {{ teamScore(team) }}</span>
+                <span>平均 {{ Math.round(teamScore(team) / team.players.length) }}</span>
+                <span>平均段位 {{ avgTierName(team) }}</span>
+              </div>
+              <div class="table-scroll" role="region" :aria-label="team.name + '阵容'" tabindex="0">
+                <table class="team-table">
+                  <thead>
+                    <tr><th>分配位置</th><th>玩家</th><th>段位</th><th>星级</th><th>有效分数</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="p in team.players" :key="p.name" :class="{ clash: !assignedPosition(team, p) }">
+                      <td :title="'可打：' + playerPositions(p).join('、') + ' 号位'">
+                        <span v-if="assignedPosition(team, p)" class="assigned-slot">{{ assignedPosition(team, p) }} 号位</span>
+                        <span v-else class="pending-slot">待补位</span>
+                      </td>
+                      <td class="player-name">{{ p.name }}</td>
+                      <td><span class="rank-badge sm" :style="{ borderColor: tierColor(p.tier), color: tierColor(p.tier) }">{{ tierName(p.tier) }}</span></td>
+                      <td>{{ starLabel(p) }}</td>
+                      <td>{{ p.effMMR ?? 0 }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
+          </div>
+
+          <div v-if="result.bench && result.bench.length" class="bench-panel">
+            <div class="bench-banner">
+              <div class="banner-overlay"></div>
+              <h3>替补席 · {{ result.bench.length }} 人</h3>
+            </div>
+            <p class="bench-sub" v-if="series">替补可换上首发。进行中的 BO3 会保留已录战果。</p>
+            <div class="table-scroll" role="region" aria-label="替补阵容" tabindex="0">
+              <table class="team-table">
+                <thead>
+                  <tr><th>位置</th><th>玩家</th><th>段位</th><th>星级</th><th>有效分数</th><th v-if="series">操作</th></tr>
+                </thead>
+                <tbody>
+                  <tr v-for="p in result.bench" :key="p.name">
+                    <td>
+                      <span v-for="pos in playerPositions(p)" :key="pos" class="pos-chip sm">
+                        <span class="pos-num">{{ pos }}</span><span class="pos-text">{{ posShort(pos) }}</span>
+                      </span>
+                    </td>
+                    <td class="player-name">{{ p.name }}</td>
+                    <td><span class="rank-badge sm" :style="{ borderColor: tierColor(p.tier), color: tierColor(p.tier) }">{{ tierName(p.tier) }}</span></td>
+                    <td>{{ starLabel(p) }}</td>
+                    <td>{{ p.effMMR ?? 0 }}</td>
+                    <td v-if="series"><button class="link-btn" :disabled="loading" @click="beginSwap(p.name)">换上首发</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </template>
+      </section>
+    </div>
+
+    <!-- 历史记录：每次分队自动入库，可回看当时阵容或删除 -->
+    <div v-show="view === 'history'" class="history-layout">
+      <section class="panel glass history-panel">
+        <div class="history-banner">
+          <div class="banner-overlay"></div>
+          <h2>战史档案 · 分队历史（{{ history.length }}）</h2>
+        </div>
+        <p v-if="apiError" class="error-text" role="alert">{{ apiError }}</p>
+        <p v-if="!history.length" class="empty-hint">开启 BO3 后，会自动在这里存档。</p>
+        <div v-else class="table-scroll" role="region" aria-label="分队历史记录" tabindex="0">
+          <table class="history-table">
+            <thead>
+              <tr><th>时间</th><th>报名/首发/替补</th><th>天辉总分</th><th>夜魇总分</th><th>分差</th><th>位置冲突</th><th>战果</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="r in history" :key="r.id" :class="{ 'row-win': r.outcome === 'win', 'row-lose': r.outcome === 'lose' }">
+                <td class="history-time">{{ formatTime(r.createdAt) }}</td>
+                <td>{{ r.rosterCount }} / {{ r.starterCount }} / {{ r.benchCount }}</td>
+                <td class="score-radiant">{{ r.scoreA }}</td>
+                <td class="score-dire">{{ r.scoreB }}</td>
+                <td>{{ Math.abs(r.scoreA - r.scoreB) }}</td>
+                <td :class="{ 'conflict-cell': r.positionConflicts > 0 }">{{ r.positionConflicts }}</td>
+                <td>
+                  <span v-if="r.bestOf === 3" class="history-series">
+                    BO3 · {{ score(r, 'win') }} : {{ score(r, 'lose') }}<span v-if="!r.outcome"> · 进行中</span>
+                  </span>
+                  <div v-else class="outcome-group">
+                    <button class="outcome-btn win" :class="{ on: r.outcome === 'win' }"
+                            @click="setOutcome(r, r.outcome === 'win' ? '' : 'win')">天辉胜</button>
+                    <button class="outcome-btn lose" :class="{ on: r.outcome === 'lose' }"
+                            @click="setOutcome(r, r.outcome === 'lose' ? '' : 'lose')">夜魇胜</button>
+                  </div>
+                </td>
+                <td class="history-ops">
+                  <button class="link-btn" @click="loadRecord(r.id)">{{ r.bestOf === 3 && !r.outcome ? '继续 BO3' : '查看阵容' }}</button>
+                  <button class="link-btn danger" @click="removeRecord(r.id)">删除</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <footer class="page-footer">
+      位置冲突相同时，取两队分差最小的方案。未填 MMR 时按段位和星级估算。
+    </footer>
+  </div>
+
+  <template id="choice-menu">
+    <div class="choice-menu" :class="{ 'is-open': open }" @focusout="onFocusOut" @keydown="onKeyDown">
+      <button :id="controlId" ref="trigger" type="button" class="choice-trigger" :disabled="disabled"
+              aria-haspopup="listbox" :aria-expanded="open" :aria-controls="open ? controlId + '-list' : null"
+              :aria-label="label + '，' + (selected?.label || placeholder)"
+              @click="open ? close() : show()">
+        <span v-if="selected?.stars" class="choice-stars" aria-hidden="true">{{ selected.stars }}</span>
+        <span class="choice-label">{{ selected?.label || placeholder }}</span>
+        <span v-if="selected?.badge" class="choice-badge" :class="selected.tone">{{ selected.badge }}</span>
+        <span class="choice-arrow" aria-hidden="true"></span>
+      </button>
+      <div v-if="open" :id="controlId + '-list'" ref="list" role="listbox" tabindex="-1" :aria-label="label"
+           :aria-activedescendant="controlId + '-option-' + active" class="choice-list">
+        <button v-for="(option, i) in options" :id="controlId + '-option-' + i" :key="option.value"
+                type="button" role="option" tabindex="-1" class="choice-option"
+                :aria-selected="option.value === modelValue" :class="{ 'is-active': i === active }"
+                @pointermove="active = i" @click="select(option)">
+          <span v-if="option.stars" class="choice-stars" aria-hidden="true">{{ option.stars }}</span>
+          <span class="choice-copy">
+            <strong>{{ option.label }}</strong>
+            <small v-if="option.detail">{{ option.detail }}</small>
+          </span>
+          <span v-if="option.badge" class="choice-badge" :class="option.tone">{{ option.badge }}</span>
+        </button>
+      </div>
+    </div>
+  </template>
+  <script src="vendor/vue.global.prod.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

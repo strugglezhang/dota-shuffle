@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" role="img" aria-label="天辉与夜魇对峙的 Dota 风格战场">
+  <defs>
+    <!-- 夜空与战场底色 -->
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#070d18"/>
+      <stop offset="0.45" stop-color="#0a1626"/>
+      <stop offset="1" stop-color="#0c1a2c"/>
+    </linearGradient>
+    <radialGradient id="tealGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#2fe6b4" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#2fe6b4" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="redGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#ff5a6a" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#ff5a6a" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="river" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2fe6b4" stop-opacity="0.0"/>
+      <stop offset="0.5" stop-color="#6ac4ff" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#ff5a6a" stop-opacity="0.0"/>
+    </linearGradient>
+    <linearGradient id="tealCrystal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7df0d0"/>
+      <stop offset="1" stop-color="#0f6f5c"/>
+    </linearGradient>
+    <linearGradient id="redCrystal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff9aa6"/>
+      <stop offset="1" stop-color="#8e2433"/>
+    </linearGradient>
+    <filter id="soft" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#sky)"/>
+
+  <!-- 远景星点 -->
+  <g fill="#bfe3ff" opacity="0.5">
+    <circle cx="160" cy="120" r="1.6"/><circle cx="340" cy="80" r="1.2"/><circle cx="520" cy="170" r="1.8"/>
+    <circle cx="760" cy="90" r="1.2"/><circle cx="980" cy="150" r="1.6"/><circle cx="1240" cy="70" r="1.4"/>
+    <circle cx="1460" cy="160" r="1.8"/><circle cx="1680" cy="100" r="1.2"/><circle cx="1820" cy="200" r="1.6"/>
+    <circle cx="240" cy="260" r="1.2"/><circle cx="1180" cy="250" r="1.2"/><circle cx="1580" cy="300" r="1.4"/>
+  </g>
+
+  <!-- 双方能量光晕 -->
+  <circle cx="250" cy="600" r="430" fill="url(#tealGlow)"/>
+  <circle cx="1670" cy="600" r="430" fill="url(#redGlow)"/>
+
+  <!-- 三路：上/下路淡、中路亮，整体对角构图 -->
+  <g stroke="#8fa6c2" stroke-opacity="0.18" stroke-width="3" fill="none">
+    <path d="M120,250 C600,300 1250,250 1800,180"/>
+    <path d="M120,900 C600,820 1250,900 1800,980"/>
+  </g>
+  <path d="M120,980 L1800,120" stroke="url(#river)" stroke-width="26" fill="none" opacity="0.55"/>
+  <path d="M120,980 L1800,120" stroke="#cfe9ff" stroke-opacity="0.25" stroke-width="2" fill="none" stroke-dasharray="14 18"/>
+
+  <!-- 中路符文点 -->
+  <g transform="translate(960 550)" opacity="0.85">
+    <circle r="46" fill="none" stroke="#6ac4ff" stroke-opacity="0.5" stroke-width="2"/>
+    <circle r="30" fill="none" stroke="#6ac4ff" stroke-opacity="0.35" stroke-width="1.5" stroke-dasharray="6 8"/>
+    <path d="M0,-20 L18,0 L0,20 L-18,0 Z" fill="#6ac4ff" fill-opacity="0.18" stroke="#9fd8ff" stroke-width="1.5"/>
+  </g>
+
+  <!-- 天辉远古与水晶塔（左） -->
+  <g transform="translate(250 600)">
+    <ellipse cy="150" rx="180" ry="40" fill="#0a2a24" opacity="0.7"/>
+    <g filter="url(#soft)" opacity="0.8">
+      <path d="M0,-150 L70,-30 L0,40 L-70,-30 Z" fill="#2fe6b4" opacity="0.5"/>
+    </g>
+    <!-- 主远古水晶 -->
+    <path d="M0,-170 L64,-40 L0,30 L-64,-40 Z" fill="url(#tealCrystal)" stroke="#9af5dd" stroke-width="2"/>
+    <path d="M0,-170 L0,30 L-64,-40 Z" fill="#0c5246" opacity="0.55"/>
+    <path d="M0,-170 L30,-100 L0,-70 L-30,-100 Z" fill="#d8fff4" opacity="0.5"/>
+    <!-- 两侧防御塔 -->
+    <path d="M-150,-30 L-118,-30 L-110,90 L-158,90 Z" fill="#13564a" stroke="#46d6b4" stroke-width="1.6"/>
+    <path d="M150,-30 L118,-30 L110,90 L158,90 Z" fill="#13564a" stroke="#46d6b4" stroke-width="1.6"/>
+    <circle cx="-134" cy="-44" r="10" fill="#7df0d0"/>
+    <circle cx="134" cy="-44" r="10" fill="#7df0d0"/>
+  </g>
+
+  <!-- 夜魇远古与尖塔（右） -->
+  <g transform="translate(1670 600)">
+    <ellipse cy="150" rx="180" ry="40" fill="#2a0f14" opacity="0.7"/>
+    <g filter="url(#soft)" opacity="0.8">
+      <path d="M0,-150 L70,-30 L0,40 L-70,-30 Z" fill="#ff5a6a" opacity="0.5"/>
+    </g>
+    <path d="M0,-170 L64,-40 L0,30 L-64,-40 Z" fill="url(#redCrystal)" stroke="#ffb3bd" stroke-width="2"/>
+    <path d="M0,-170 L0,30 L64,-40 Z" fill="#5e1622" opacity="0.55"/>
+    <path d="M0,-170 L30,-100 L0,-70 L-30,-100 Z" fill="#ffe3e7" opacity="0.45"/>
+    <!-- 夜魇尖刺塔 -->
+    <path d="M-150,90 L-134,-60 L-118,90 Z" fill="#5e1622" stroke="#ff7d8c" stroke-width="1.6"/>
+    <path d="M150,90 L134,-60 L118,90 Z" fill="#5e1622" stroke="#ff7d8c" stroke-width="1.6"/>
+    <circle cx="-134" cy="-70" r="9" fill="#ff9aa6"/>
+    <circle cx="134" cy="-70" r="9" fill="#ff9aa6"/>
+  </g>
+
+  <!-- 中央英雄剪影：五个轮廓对线 -->
+  <g fill="#0b1626" stroke="#6ac4ff" stroke-opacity="0.55" stroke-width="1.5">
+    <g transform="translate(820 560)">
+      <circle cx="0" cy="-26" r="12"/>
+      <path d="M-16,40 L-12,-6 L0,-14 L12,-6 L16,40 Z"/>
+      <path d="M-20,0 L-34,-22 M20,0 L34,-22" stroke-linecap="round"/>
+    </g>
+    <g transform="translate(890 585) scale(0.85)">
+      <circle cx="0" cy="-26" r="12"/>
+      <path d="M-16,40 L-12,-6 L0,-14 L12,-6 L16,40 Z"/>
+      <path d="M-20,0 L-34,-22 M20,0 L34,-22" stroke-linecap="round"/>
+    </g>
+    <g transform="translate(1100 585) scale(0.85)">
+      <circle cx="0" cy="-26" r="12"/>
+      <path d="M-16,40 L-12,-6 L0,-14 L12,-6 L16,40 Z"/>
+      <path d="M-20,0 L-34,-22 M20,0 L34,-22" stroke-linecap="round"/>
+    </g>
+    <g transform="translate(1170 560)">
+      <circle cx="0" cy="-26" r="12"/>
+      <path d="M-16,40 L-12,-6 L0,-14 L12,-6 L16,40 Z"/>
+      <path d="M-20,0 L-34,-22 M20,0 L34,-22" stroke-linecap="round"/>
+    </g>
+  </g>
+
+  <!-- 顶部与底部压暗，保证文字可读 -->
+  <rect width="1920" height="1080" fill="#050a12" opacity="0.35"/>
+</svg>
